@@ -1,0 +1,10 @@
+<launch>
+  <node name="cameracalibrator" pkg="camera_calibration" type="cameracalibrator.py">
+    <!-- set a private parameter for the node -->
+    <param name="size" value="8x6" />
+    <param name="square" value="0.035" />
+    <rosparam>
+      <rosparam command="image" param="/camera/color/image_raw" />
+    </rosparam>
+  </node>
+</launch>
