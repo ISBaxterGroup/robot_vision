@@ -48,7 +48,7 @@ int main(int argc, char **argv) try
 
     // publish functions
 	std::function<void(int, int, const void*)> depth_publish = std::bind(static_cast<void (ImagePublisher::*)(int, int, const void*)>
-	    (&ImagePublisher::publish), &ip_depth, 
+	   (&ImagePublisher::publish), &ip_depth, 
 		std::placeholders::_1, 
 		std::placeholders::_2, 
 		std::placeholders::_3);
