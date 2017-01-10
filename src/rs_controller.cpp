@@ -64,11 +64,11 @@ int main(int argc, char **argv) try
 		std::placeholders::_2, 
 		std::placeholders::_3);
     std::function<void(int, int, const void*)> depth_aligned_to_color_publish = std::bind(static_cast<void (ImagePublisher::*)(int, int, const void*)>
-        (&ImagePublisher::publish), 
-        &ip_depth_aligned_to_color, 
-        std::placeholders::_1, 
-        std::placeholders::_2, 
-        std::placeholders::_3);
+    (&ImagePublisher::publish), 
+    &ip_depth_aligned_to_color, 
+    std::placeholders::_1, 
+    std::placeholders::_2, 
+    std::placeholders::_3);
     
     ros::Rate loop_rate(10);
     while(n.ok())
@@ -87,9 +87,9 @@ int main(int argc, char **argv) try
     								   dev->get_stream_width(rs::stream::color_aligned_to_depth), 
     								   dev->get_frame_data(rs::stream::color_aligned_to_depth));
 		
-        depth_aligned_to_color_publish(dev->get_stream_height(rs::stream::depth_aligned_to_color), 
-                                       dev->get_stream_width(rs::stream::depth_aligned_to_color), 
-                                       dev->get_frame_data(rs::stream::depth_aligned_to_color));
+    depth_aligned_to_color_publish(dev->get_stream_height(rs::stream::depth_aligned_to_color), 
+       dev->get_stream_width(rs::stream::depth_aligned_to_color), 
+       dev->get_frame_data(rs::stream::depth_aligned_to_color));
     	loop_rate.sleep();
     }
     dev->stop();

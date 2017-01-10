@@ -48,7 +48,7 @@ void drawAxis(cv::Mat &_image, cv::InputArray _cameraMatrix, cv::InputArray _dis
     cv::line(_image, imagePoints[0], imagePoints[3], cv::Scalar(255, 0, 0), 3);
 }
 
-void measure(tf::Vector3& p, tf::Quaternion& q, const cv::Mat& src_img){    
+void measure(tf::Vector3& p, tf::Quaternion& q, const cv::Mat& src_img){
 
     // Find chessbord corners
     cv::namedWindow("src", CV_WINDOW_AUTOSIZE);
