@@ -28,15 +28,15 @@ int main(int argc, char **argv) try
     try { dev->enable_stream(rs::stream::infrared2, rs::preset::best_quality); } catch(...) {}
 
     float depth_scale_meters = dev->get_depth_scale();
-    rs::intrinsics z_intrinsic = dev->get_stream_intrinsics(rs::stream::depth);
-    rs::extrinsics z_extrinsic = dev->get_extrinsics(rs::stream::depth, rs::stream::color);
+    rs::intrinsics z_intrinsic = dev->get_stream_intrinsics(rs::stream::color);
+    //rs::extrinsics z_extrinsic = dev->get_extrinsics(rs::stream::depth, rs::stream::color);
     
     ImagePublisher ip_depth(sizeof(uint16_t), "rs_camera/image_depth", "mono16");
     ImagePublisher ip_color(sizeof(unsigned char) * 3, "rs_camera/image_color", "rgb8");
     ImagePublisher ip_color_aligned_to_depth(sizeof(unsigned char) * 3, "rs_camera/image_color_aligned_to_depth", "rgb8");
     ImagePublisher ip_depth_aligned_to_color(sizeof(unsigned char) * 3, "rs_camera/image_depth_aligned_to_color", "mono16");
 
-    DeprojectService deproject_service(depth_scale_meters, z_intrinsic, z_extrinsic, &ip_depth);
+    DeprojectService deproject_service(depth_scale_meters, z_intrinsic, &ip_depth_aligned_to_color);
 
     // start all service
     dev->start();

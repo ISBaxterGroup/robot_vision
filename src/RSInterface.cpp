@@ -86,12 +86,11 @@ void ImagePublisher::publish(int height, int width, const void* frame_data)
 
 constexpr char DeprojectService::def_service_name_[];
 
-DeprojectService::DeprojectService(const float depth_scale_meters, const rs::intrinsics& z_intrinsic, const rs::extrinsics& z_extrinsic, ImagePublisher* image_publisher_ptr):
+DeprojectService::DeprojectService(const float depth_scale_meters, const rs::intrinsics& z_intrinsic, ImagePublisher* image_publisher_ptr):
 	initialized_(false),
 	exit_(false),
 	depth_scale_meters_(depth_scale_meters),
 	z_intrinsic_(z_intrinsic),
-	z_extrinsic_(z_extrinsic),
 	service_name_(def_service_name_),
 	image_publisher_ptr_(image_publisher_ptr)
 {};
@@ -135,8 +134,7 @@ bool DeprojectService::service_callback(robot_vision::Deproject::Request &req, r
 	float scaled_depth = static_cast<float>( image_depth16[ req.v * image.cols + req.u ] ) * depth_scale_meters_;
 	// depth pixel -> 3d point in depth camera frame.
 	rs_deproject_pixel_to_point(depth_point, &z_intrinsic_, depth_pixel, scaled_depth);
-	// depth camera frame -> color camera frame.
-	rs_transform_point_to_point(color_point, &z_extrinsic_, depth_point);
+	
 	res.x = color_point[0];
 	res.y = color_point[1];
 	res.z = color_point[2];
