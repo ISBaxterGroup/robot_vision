@@ -21,32 +21,33 @@ int main(int argc, char **argv) try
     printf("    Serial number: %s\n", dev->get_serial());
     printf("    Firmware version: %s\n", dev->get_firmware_version());
 
-    const auto streams = 3;
-
     dev->enable_stream(rs::stream::color, rs::preset::best_quality);
     dev->enable_stream(rs::stream::depth, rs::preset::best_quality);
     try { dev->enable_stream(rs::stream::infrared2, rs::preset::best_quality); } catch(...) {}
 
-    float depth_scale_meters = dev->get_depth_scale();
-    rs::intrinsics z_intrinsic = dev->get_stream_intrinsics(rs::stream::color);
-    //rs::extrinsics z_extrinsic = dev->get_extrinsics(rs::stream::depth, rs::stream::color);
+    // set accuracy option
+    dev->set_option(rs::option::f200_motion_range, 90); // [0 - 100]
+    dev->set_option(rs::option::f200_accuracy, 3); // [0 - 3]
     
+    // Instanciate Image publisher
     ImagePublisher ip_depth(sizeof(uint16_t), "rs_camera/image_depth", "mono16");
     ImagePublisher ip_color(sizeof(unsigned char) * 3, "rs_camera/image_color", "rgb8");
     ImagePublisher ip_color_aligned_to_depth(sizeof(unsigned char) * 3, "rs_camera/image_color_aligned_to_depth", "rgb8");
     ImagePublisher ip_depth_aligned_to_color(sizeof(unsigned char) * 3, "rs_camera/image_depth_aligned_to_color", "mono16");
 
-    DeprojectService deproject_service(depth_scale_meters, z_intrinsic, &ip_depth_aligned_to_color);
+    // Instanciate Deproject Service
+    DeprojectService deproject_service;
 
     // start all service
     dev->start();
-    deproject_service.start_service();
+
+    // Initialize Image publisher
     ip_depth.init();
     ip_color.init();
     ip_color_aligned_to_depth.init();
     ip_depth_aligned_to_color.init();
 
-    // publish functions
+    // set publish functions
     std::function<void(int, int, const void*)> depth_publish = std::bind(static_cast<void (ImagePublisher::*)(int, int, const void*)>
        (&ImagePublisher::publish), &ip_depth, 
         std::placeholders::_1, 
@@ -69,12 +70,25 @@ int main(int argc, char **argv) try
         std::placeholders::_1, 
         std::placeholders::_2, 
         std::placeholders::_3);
+
+    // initialize deproject service
+    dev->wait_for_frames();
+    cv::Mat image(dev->get_stream_height(rs::stream::color), 
+                  dev->get_stream_width(rs::stream::color), 
+                  cv_bridge::getCvType("mono16"), 
+                  (unsigned char *)(dev->get_frame_data(rs::stream::depth_aligned_to_color)));
+    deproject_service.set_data(dev->get_depth_scale(), dev->get_stream_intrinsics(rs::stream::color), image);
+    std::cout << "start deproject_service." << std::endl;
+    deproject_service.start_service();
     
+    std::cout << "start publish image." << std::endl;
+    // service loop
     ros::Rate loop_rate(10);
     while(n.ok())
     {
         dev->wait_for_frames();
         
+        // Publish Images
         depth_publish(dev->get_stream_height(rs::stream::depth), 
                                        dev->get_stream_width(rs::stream::depth), 
                                        dev->get_frame_data(rs::stream::depth));
@@ -90,6 +104,14 @@ int main(int argc, char **argv) try
         depth_aligned_to_color_publish(dev->get_stream_height(rs::stream::depth_aligned_to_color), 
                                         dev->get_stream_width(rs::stream::depth_aligned_to_color), 
                                         dev->get_frame_data(rs::stream::depth_aligned_to_color));
+
+        // Update data for deproject service 
+        cv::Mat image(dev->get_stream_height(rs::stream::color), 
+                      dev->get_stream_width(rs::stream::color), 
+                      cv_bridge::getCvType("mono16"), 
+                      (unsigned char *)(dev->get_frame_data(rs::stream::depth_aligned_to_color)));
+        deproject_service.set_data(dev->get_depth_scale(), dev->get_stream_intrinsics(rs::stream::color), image.clone());
+        
         loop_rate.sleep();
     }
     dev->stop();

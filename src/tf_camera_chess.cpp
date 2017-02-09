@@ -176,7 +176,8 @@ int main(int argc, char *argv[]){
     cv::Mat imgage = cv_ptr->image;
     cv::imshow("captured image", imgage);
     cv::waitKey(0);
-
+    cv::destroyWindow("captured image");
+    
     // Calculate transform camera to chess bord
     std::cout << "Measure start." << std::endl;
     tf::Vector3 trans_chess_camera;

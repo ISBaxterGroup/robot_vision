@@ -64,6 +64,10 @@ public:
 	/**
 	 * @brief getter 
 	 */
+	bool frame_available();
+	/**
+	 * @brief getter 
+	 */
 	cv::Mat get_latest_image();
 	/**
 	 * @brief publish frame as imageptr
@@ -88,12 +92,12 @@ public:
 private:
 	bool initialized_;
 	bool exit_;
+
 	float depth_scale_meters_;
     rs::intrinsics z_intrinsic_;
-    rs::extrinsics z_extrinsic_;
-    std::string service_name_;
+    cv::Mat depth_image_;
 
-    ImagePublisher* image_publisher_ptr_;
+    std::string service_name_;
 
 	std::mutex mtx_;
 	std::thread service_thread_;
@@ -102,13 +106,17 @@ public:
 	/**
 	 * @brief A constructor 
 	 */
-	DeprojectService(const float depth_scale_meters, const rs::intrinsics& z_intrinsic, const rs::extrinsics& depth_color_extrinsics, ImagePublisher* image_publisher_ptr);
+	DeprojectService();
+	DeprojectService(const float depth_scale_meters, const rs::intrinsics& z_intrinsic, const cv::Mat& depth_image);
 	~DeprojectService();
 	/**
 	 * @brief Initialize and start service
 	 */
 	void start_service();
-
+	/**
+	 * @brief Setter
+	 */
+	void set_data(const float depth_scale_meters, const rs::intrinsics& z_intrinsic, const cv::Mat& depth_image);
 private:
 	/**
 	 * @brief wait loop

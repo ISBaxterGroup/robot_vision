@@ -26,13 +26,21 @@ rs::frame ImagePublisher::get_latest_frame()
 	assert(initialized_);
 	std::unique_lock<std::mutex> lock(frame_mutex_);
 	frame_buf_ = std::move(latest_frame_);
+	frame_available_ = false;
 	return std::move(frame_buf_);
 };
 cv::Mat ImagePublisher::get_latest_image()
 {
 	assert(initialized_);
 	std::unique_lock<std::mutex> lock(frame_mutex_);
+	frame_available_ = false;
 	return std::move(latest_image_);
+};
+bool ImagePublisher::frame_available()
+{
+	assert(initialized_);
+	std::unique_lock<std::mutex> lock(frame_mutex_);
+	return frame_available_;
 };
 void ImagePublisher::publish(rs::frame frame)
 {
@@ -81,28 +89,34 @@ void ImagePublisher::publish(int height, int width, const void* frame_data)
 		msg->step = width * step_size_;
 		pub_.publish(msg);
 	}
-
+	frame_available_ = true;
 };
 
 constexpr char DeprojectService::def_service_name_[];
 
-DeprojectService::DeprojectService(const float depth_scale_meters, const rs::intrinsics& z_intrinsic, ImagePublisher* image_publisher_ptr):
+DeprojectService::DeprojectService():
 	initialized_(false),
+	exit_(false),
+	depth_scale_meters_(),
+	z_intrinsic_(),
+	depth_image_(),
+	service_name_(def_service_name_)
+{};
+DeprojectService::DeprojectService(const float depth_scale_meters, const rs::intrinsics& z_intrinsic, const cv::Mat& depth_image):
+	initialized_(true),
 	exit_(false),
 	depth_scale_meters_(depth_scale_meters),
 	z_intrinsic_(z_intrinsic),
-	service_name_(def_service_name_),
-	image_publisher_ptr_(image_publisher_ptr)
+	depth_image_(depth_image),
+	service_name_(def_service_name_)
 {};
 DeprojectService::~DeprojectService(){
 	// joint thread
 	if(service_thread_.joinable()) service_thread_.join();
-
 	std::cout << "DeprojectService stop" << std::endl;
 }
 void DeprojectService::start_service()
 {
-	initialized_ = true;
 	// Start publish loop
 	try {
 		service_thread_ = std::thread( [this]{ wait_for_request(); } );
@@ -110,6 +124,14 @@ void DeprojectService::start_service()
 	catch (std::system_error& e) {
 		std::cout << e.what() << std::endl;
 	}
+};
+void DeprojectService::set_data(const float depth_scale_meters, const rs::intrinsics& z_intrinsic, const cv::Mat& depth_image)
+{
+	std::unique_lock<std::mutex> lock(mtx_);
+	initialized_ = true;
+	depth_scale_meters_ = depth_scale_meters;
+	z_intrinsic_ = z_intrinsic;
+	depth_image_ = depth_image.clone();
 };
 void DeprojectService::wait_for_request()
 {
@@ -120,32 +142,31 @@ void DeprojectService::wait_for_request()
 bool DeprojectService::service_callback(robot_vision::Deproject::Request &req, robot_vision::Deproject::Response &res)
 {
 	assert(initialized_);
-	assert(req.u >= 0 && req.v >= 0);
+	std::unique_lock<std::mutex> lock(mtx_);
+	if(req.u <= 0 || req.v <= 0){
+		std::cout << "request out of range" << std::endl;
+		return false;
+	}
+	if(req.u > depth_image_.cols || req.v > depth_image_.rows){
+		std::cout << "request out of range" << std::endl;
+		return false;
+	}
+	{
+		float depth_point[3] = {0, 0, 0};
+		rs::float2 depth_pixel = {static_cast<float>(req.u), static_cast<float>(req.v)};
 
-	cv::Mat image = image_publisher_ptr_->get_latest_image();
+		const float offset(0.04); // m
+		const uint16_t *image_depth16 = reinterpret_cast<const uint16_t *>(depth_image_.data); 
+		float scaled_depth = static_cast<float>( image_depth16[ req.v * depth_image_.cols + req.u ] ) * depth_scale_meters_ + offset;
 
-	assert(req.u < image.cols && req.v < image.rows);
+		// depth pixel -> 3d point in depth camera frame.
+		rs::float3 color_point = z_intrinsic_.deproject(depth_pixel, scaled_depth);
 
-	float depth_point[3] = {0, 0, 0};
-	float color_point[3] = {0, 0, 0};
-	float depth_pixel[2] = {static_cast<float>(req.u), static_cast<float>(req.v)};
-
-	const uint16_t *image_depth16 = reinterpret_cast<const uint16_t *>(image.data); 
-	float scaled_depth = static_cast<float>( image_depth16[ req.v * image.cols + req.u ] ) * depth_scale_meters_;
-	// depth pixel -> 3d point in depth camera frame.
-	rs_deproject_pixel_to_point(depth_point, &z_intrinsic_, depth_pixel, scaled_depth);
-	
-	res.x = color_point[0];
-	res.y = color_point[1];
-	res.z = color_point[2];
-
-	cv::circle(image, cv::Point(req.u, req.v), 30, 0.0, 3, 8);
-	
-	cv::namedWindow("detected pos", CV_WINDOW_AUTOSIZE|CV_WINDOW_FREERATIO);
-	cv::imshow("detected pos", image);
-	cv::moveWindow("detected pos", 100, 100);
-	cv::waitKey(5000);
-	cv::destroyWindow("detected pos");
+		res.x = color_point.x;
+		res.y = color_point.y;
+		res.z = color_point.z;
+	}
+	std::cout << "return point:" << res.x << " " << res.y << " " << res.z << std::endl;
 	
 	return true;
 }; 
