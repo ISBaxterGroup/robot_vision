@@ -110,7 +110,7 @@ int main(int argc, char **argv) try
                       dev->get_stream_width(rs::stream::color), 
                       cv_bridge::getCvType("mono16"), 
                       (unsigned char *)(dev->get_frame_data(rs::stream::depth_aligned_to_color)));
-        deproject_service.set_data(dev->get_depth_scale(), dev->get_stream_intrinsics(rs::stream::color), image.clone());
+        deproject_service.set_data(dev->get_depth_scale(), dev->get_stream_intrinsics(rs::stream::color), image);
         
         loop_rate.sleep();
     }
