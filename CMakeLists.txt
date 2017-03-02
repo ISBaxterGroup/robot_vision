@@ -138,6 +138,7 @@ include_directories(
 ## Declare a C++ executable
 add_executable(rs_controller src/rs_controller.cpp src/RSInterface.cpp)
 add_executable(tf_camera_chess src/tf_camera_chess.cpp)
+add_executable(tf_chess_base src/tf_chess_base.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
@@ -150,7 +151,12 @@ target_link_libraries(rs_controller
   ${OPENGL_LIBRARIES}
   ${OPENCV_LIBRARIES}
 )
-
+target_link_libraries(tf_chess_base
+  ${catkin_LIBRARIES}
+  ${GLUT_LIBRARY}
+  ${OPENGL_LIBRARIES}
+  ${OPENCV_LIBRARIES}
+)
 target_link_libraries(tf_camera_chess
   ${catkin_LIBRARIES}
   ${GLUT_LIBRARY}
