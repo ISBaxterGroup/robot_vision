@@ -163,6 +163,13 @@ target_link_libraries(tf_camera_chess
   ${OPENGL_LIBRARIES}
   ${OPENCV_LIBRARIES}
 )
+
+target_link_libraries(tf_chess_base
+  ${catkin_LIBRARIES}
+  ${GLUT_LIBRARY}
+  ${OPENGL_LIBRARIES}
+  ${OPENCV_LIBRARIES}
+)
 #############
 ## Install ##
 #############
